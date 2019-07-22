@@ -1,0 +1,63 @@
+version: 1.1.0
+services:
+  - mysql
+  - php:
+      version: 7.2
+
+variables:
+  global:
+    COMPOSER_BIN: $SOURCE_DIR/vendor/bin
+    BLT_DIR: $SOURCE_DIR/vendor/acquia/blt
+
+events:
+  build:
+    steps:
+      - setup-env:
+          type: script
+          script:
+            - echo 'STARTED'
+            - export PIPELINE_SSH_KEY=~/.ssh/my-key
+            - "eval `ssh-agent -s`" # start the ssh agent
+            - "ssh-add ~/.ssh/my-key" # add a key
+            - composer validate --no-check-all --ansi
+            - composer install --ansi
+            - source ${BLT_DIR}/scripts/pipelines/setup_env
+            # - nvm install v6.9.1
+            # - npm install --global yarn
+            - unset PIPELINE_SSH_KEY
+            - echo 'Step executed with default ssh keys'
+            - echo 'FINISHED'
+      - validate:
+          type: script
+          script:
+            - source ${BLT_DIR}/scripts/pipelines/validate
+      - setup-app:
+          type: script
+          script:
+            - source ${BLT_DIR}/scripts/pipelines/setup_app
+      #      - tests:
+      #          type: script
+      #          script:
+      #            - source ${BLT_DIR}/scripts/pipelines/tests
+      - build-artifact:
+          type: script
+          script:
+            - source ${BLT_DIR}/scripts/pipelines/build_artifact
+  post-deploy:
+    steps:
+      - deploy:
+          script:
+            - pipelines-deploy
+  pr-merged:
+    steps:
+      - deploy:
+          script:
+            - pipelines-deploy
+  pr-closed:
+    steps:
+      - deploy:
+          script:
+            - pipelines-deploy
+ssh-keys:
+  my-key:
+    secure: #add ssh key here

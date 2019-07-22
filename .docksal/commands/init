@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+## Run blt setup commands to prepare your local site for
+## development.
+##
+## Usage: fin init
+DOCROOT_PATH="${PROJECT_ROOT}/${DOCROOT}"
+# Initialize stack
+fin project start
+
+unameOut="$(uname -s)"
+case "${unameOut}" in
+    Linux*)     machine=Linux;;
+    Darwin*)    machine=Mac;;
+    CYGWIN*)    machine=Cygwin;;
+    MINGW*)     machine=MinGw;;
+    *)          machine="UNKNOWN:${unameOut}"
+esac
+
+# Import the certs
+# Should this be a different conditional?
+if [[ machine == "MinGw" ]]; then
+	# Run this command manually for windows instead
+  fin webny/certs
+fi
+
+# Install project requirements
+fin exec composer clear-cache
+fin exec COMPOSER_PROCESS_TIMEOUT=2000
+fin exec composer install
+
+# Set up blt
+cd $DOCROOT_PATH
+
+rm -f $DOCROOT_PATH/sites/default/settings/local.settings.php
+rm -f $DOCROOT_PATH/sites/default/local.drush.yml
+
+cp $PROJECT_ROOT/.docksal/docksal.local.blt.yml $PROJECT_ROOT/blt/local.blt.yml
+
+fin blt blt:init:settings
+fin blt drupal:install --no-interaction
+
+cp $DOCROOT_PATH/sites/default/local.drush.yml $PROJECT_ROOT/local.drush.yml
